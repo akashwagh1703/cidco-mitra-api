@@ -101,7 +101,18 @@ class PublicController extends Controller
 
     public function getServices()
     {
-        $services = Service::where('status', true)->orderBy('order')->get();
-        return response()->json(['success' => true, 'data' => $services]);
+        $services = Service::with('category')
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get([
+                'id', 'category_id', 'name', 'description', 'detailed_description',
+                'requirements', 'documents_required', 'fees', 'processing_time',
+                'is_active', 'is_online'
+            ]);
+            
+        return response()->json([
+            'success' => true, 
+            'data' => $services
+        ]);
     }
 }

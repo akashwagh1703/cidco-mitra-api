@@ -4,39 +4,34 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Service extends Model
 {
     protected $fillable = [
-        'title',
-        'description',
-        'overview',
-        'pricing',
-        'documents',
-        'timeline',
-        'icon',
-        'image',
-        'phone',
-        'whatsapp',
-        'appointment_url',
-        'status',
-        'order'
+        'category_id',
+        'name',
+        'description', 
+        'detailed_description',
+        'requirements',
+        'documents_required',
+        'fees',
+        'processing_time',
+        'is_active',
+        'is_online'
     ];
 
     protected $casts = [
-        'title' => 'array',
-        'description' => 'array',
-        'overview' => 'array',
-        'pricing' => 'array',
-        'documents' => 'array',
-        'timeline' => 'array',
-        'status' => 'boolean',
-        'order' => 'integer'
+        'requirements' => 'array',
+        'documents_required' => 'array',
+        'fees' => 'decimal:2',
+        'is_active' => 'boolean',
+        'is_online' => 'boolean'
     ];
 
-    public function appointments(): HasMany
+    public function category(): BelongsTo
     {
-        return $this->hasMany(Appointment::class);
+        return $this->belongsTo(ServiceCategory::class);
     }
 
     public function schedules(): HasMany
