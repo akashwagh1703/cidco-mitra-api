@@ -46,7 +46,21 @@ class ServiceController extends Controller
         }
 
         $service = Service::create($request->all());
-        return response()->json(['success' => true, 'data' => $service, 'message' => 'Service created successfully']);
+        
+        // Auto-create schedules: Monday to Friday, 9 AM to 6 PM, 30-minute slots
+        $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        foreach ($days as $day) {
+            $service->schedules()->create([
+                'day_of_week' => $day,
+                'start_time' => '09:00:00',
+                'end_time' => '18:00:00',
+                'slot_duration' => 30,
+                'max_appointments_per_slot' => 1,
+                'is_active' => true
+            ]);
+        }
+        
+        return response()->json(['success' => true, 'data' => $service, 'message' => 'Service created successfully with schedules']);
     }
 
     public function show(string $id)
