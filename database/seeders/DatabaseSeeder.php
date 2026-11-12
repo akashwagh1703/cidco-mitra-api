@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -11,7 +12,6 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create permissions
         $permissions = [
             'view_dashboard',
             'manage_leads',
@@ -28,12 +28,11 @@ class DatabaseSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission]);
         }
 
-        // Create roles
-        $superAdmin = Role::create(['name' => 'Super Admin']);
-        $superAdmin->givePermissionTo(Permission::all());
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin']);
+        $superAdmin->syncPermissions(Permission::all());
 
-        $admin = Role::create(['name' => 'Admin']);
-        $admin->givePermissionTo([
+        $admin = Role::firstOrCreate(['name' => 'Admin']);
+        $admin->syncPermissions([
             'view_dashboard',
             'manage_leads',
             'update_lead_status',
@@ -43,8 +42,8 @@ class DatabaseSeeder extends Seeder
             'manage_users',
         ]);
 
-        $manager = Role::create(['name' => 'Manager']);
-        $manager->givePermissionTo([
+        $manager = Role::firstOrCreate(['name' => 'Manager']);
+        $manager->syncPermissions([
             'view_dashboard',
             'manage_leads',
             'update_lead_status',
@@ -52,21 +51,49 @@ class DatabaseSeeder extends Seeder
             'access_reports',
         ]);
 
-        $agent = Role::create(['name' => 'Agent']);
-        $agent->givePermissionTo([
+        $agent = Role::firstOrCreate(['name' => 'Agent']);
+        $agent->syncPermissions([
             'view_dashboard',
             'update_lead_status',
             'view_notifications',
         ]);
 
-        // Create default admin user
-        $user = User::create([
-            'name' => 'Admin User',
-            'email' => 'admin@cidcomitra.gov.in',
-            'password' => bcrypt('admin123'),
-            'status' => true,
+        $user = User::firstOrCreate(
+            ['email' => 'admin@cidcomitra.gov.in'],
+            [
+                'name' => 'Admin User',
+                'password' => bcrypt('admin123'),
+                'status' => true,
+            ]
+        );
+
+        if (!$user->hasRole('Super Admin')) {
+            $user->assignRole('Super Admin');
+        }
+
+        Setting::set('general', [
+            'site_name' => 'CIDCO Mitra',
+            'contact_email' => 'info@cidcomitra.gov.in',
+            'contact_phone' => '+91 22 2757 2000',
+            'address' => 'CIDCO Bhavan, CBD Belapur, Navi Mumbai - 400614',
         ]);
 
-        $user->assignRole('Super Admin');
+        Setting::set('branding', [
+            'primary_color' => '#0066CC',
+            'secondary_color' => '#004C99',
+            'font_family' => 'Inter',
+        ]);
+
+        Setting::set('homepage', [
+            'hero_title' => 'Your Trusted Partner for CIDCO Services',
+            'hero_subtitle' => 'Fast and easy access to government services',
+        ]);
+
+        Setting::set('seo', [
+            'meta_title' => 'CIDCO Mitra - Government Services',
+            'meta_description' => 'Fast and easy access to CIDCO government services',
+        ]);
+
+        $this->call(ServiceSeeder::class);
     }
 }

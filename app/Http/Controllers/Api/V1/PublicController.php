@@ -41,8 +41,9 @@ class PublicController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'phone' => 'nullable|string|max:20',
-            'message' => 'required|string',
+            'phone' => ['nullable', 'regex:/^[0-9]{10}$/'],
+            'message' => 'required|string|max:2000',
+            'website' => 'nullable|max:0', // honeypot
         ]);
 
         $lead = Lead::create([
@@ -84,17 +85,16 @@ class PublicController extends Controller
 
     public function getStats()
     {
-        $totalLeads = Lead::count();
-        $convertedLeads = Lead::where('status', 'converted')->count();
-        $successRate = $totalLeads > 0 ? round(($convertedLeads / $totalLeads) * 100) : 0;
+        // Public marketing stats — do not expose raw lead counts
+        $homepage = Setting::get('homepage') ?? [];
 
         return response()->json([
             'success' => true,
             'data' => [
-                'total_clients' => $totalLeads,
-                'success_rate' => $successRate,
-                'years_experience' => 15,
-                'awards_won' => 50,
+                'total_clients' => (int) ($homepage['stat_clients'] ?? 500),
+                'success_rate' => (int) ($homepage['stat_success_rate'] ?? 95),
+                'years_experience' => (int) ($homepage['stat_years'] ?? 15),
+                'awards_won' => (int) ($homepage['stat_awards'] ?? 50),
             ],
         ]);
     }

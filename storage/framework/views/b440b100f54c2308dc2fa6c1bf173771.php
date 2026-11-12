@@ -32,4 +32,4 @@
         </div>
     </body>
 </html>
-<?php /**PATH D:\Akash Wagh\Projects\CIDCO-MITRA\cidco-mitra-api\vendor\laravel\framework\src\Illuminate\Foundation\Exceptions/views/minimal.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\Akash Wagh\Projects\CIDCO-MITRA\git-clone\cidco-mitra-api\vendor\laravel\framework\src\Illuminate\Foundation\Exceptions/views/minimal.blade.php ENDPATH**/ ?>

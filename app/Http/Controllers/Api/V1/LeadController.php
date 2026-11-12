@@ -16,10 +16,15 @@ class LeadController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'phone' => 'required|string|max:20',
-            'message' => 'nullable|string',
-            'source' => 'nullable|string|default:website',
+            'phone' => ['required', 'regex:/^[0-9]{10}$/'],
+            'message' => 'nullable|string|max:2000',
+            'source' => 'nullable|string|max:50',
+            'website' => 'nullable|max:0', // honeypot
         ]);
+
+        unset($validated['website']);
+        $validated['source'] = $validated['source'] ?? 'website';
+        $validated['status'] = 'new';
 
         $lead = Lead::create($validated);
 
@@ -45,7 +50,7 @@ class LeadController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Lead submitted successfully',
-            'data' => $lead,
+            'data' => ['id' => $lead->id],
         ], 201);
     }
 }

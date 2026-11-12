@@ -12,26 +12,27 @@ use App\Http\Controllers\Api\V1\Admin\ServiceController;
 use App\Http\Controllers\Api\V1\Admin\SettingController;
 use App\Http\Controllers\Api\V1\Admin\UserController;
 use App\Http\Controllers\Api\V1\Admin\AppointmentController as AdminAppointmentController;
+use App\Http\Controllers\Api\V1\Admin\AdoController;
 use App\Http\Controllers\Api\V1\Admin\ServiceScheduleController;
 use Illuminate\Support\Facades\Route;
 
 // Public API Routes
 Route::prefix('v1')->group(function () {
     // Public lead submission
-    Route::post('/leads', [LeadController::class, 'store']);
+    Route::post('/leads', [LeadController::class, 'store'])->middleware('throttle:10,1');
     
     // Public website APIs
-    Route::get('/public/settings', [PublicController::class, 'getSettings']);
-    Route::post('/public/contact', [PublicController::class, 'submitLead']);
-    Route::get('/public/stats', [PublicController::class, 'getStats']);
-    Route::get('/public/services', [PublicController::class, 'getServices']);
+    Route::get('/public/settings', [PublicController::class, 'getSettings'])->middleware('throttle:60,1');
+    Route::post('/public/contact', [PublicController::class, 'submitLead'])->middleware('throttle:8,1');
+    Route::get('/public/stats', [PublicController::class, 'getStats'])->middleware('throttle:30,1');
+    Route::get('/public/services', [PublicController::class, 'getServices'])->middleware('throttle:60,1');
     
     // Public appointment booking
-    Route::post('/appointments', [AppointmentController::class, 'store']);
-    Route::get('/services/{serviceId}/available-slots', [AppointmentController::class, 'availableSlots']);
+    Route::post('/appointments', [AppointmentController::class, 'store'])->middleware('throttle:8,1');
+    Route::get('/services/{serviceId}/available-slots', [AppointmentController::class, 'availableSlots'])->middleware('throttle:60,1');
 
     // Authentication
-    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 });
 
 // Protected API Routes
@@ -43,16 +44,26 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Admin routes
     Route::prefix('admin')->group(function () {
         // Dashboard
-        Route::get('/dashboard', [DashboardController::class, 'index'])
-            ->middleware('permission:view_dashboard');
+        Route::middleware('permission:view_dashboard')->group(function () {
+            Route::get('/dashboard', [DashboardController::class, 'index']);
+            Route::get('/dashboard/advance-lead-pnl', [DashboardController::class, 'advanceLeadPnl']);
+            Route::get('/dashboard/insights', [DashboardController::class, 'insights']);
+        });
 
         // Leads Management
         Route::middleware('permission:manage_leads')->group(function () {
             Route::get('/leads', [AdminLeadController::class, 'index']);
             Route::get('/leads/export', [AdminLeadController::class, 'export']);
+            Route::post('/leads', [AdminLeadController::class, 'store']);
             Route::get('/leads/{id}', [AdminLeadController::class, 'show']);
             Route::put('/leads/{id}', [AdminLeadController::class, 'update']);
             Route::delete('/leads/{id}', [AdminLeadController::class, 'destroy']);
+
+            // ADO Master
+            Route::get('/ados', [AdoController::class, 'index']);
+            Route::post('/ados', [AdoController::class, 'store']);
+            Route::put('/ados/{id}', [AdoController::class, 'update']);
+            Route::delete('/ados/{id}', [AdoController::class, 'destroy']);
         });
 
         Route::middleware('permission:update_lead_status')->group(function () {

@@ -25,6 +25,14 @@ class SettingController extends Controller
             $settings['branding'] = $branding;
         }
 
+        // Never echo SMTP password back to the client
+        if (isset($settings['email']) && is_array($settings['email'])) {
+            $email = $settings['email'];
+            $email['smtp_password_set'] = !empty($email['smtp_password']);
+            unset($email['smtp_password']);
+            $settings['email'] = $email;
+        }
+
         return response()->json([
             'success' => true,
             'data' => $settings,
@@ -36,7 +44,7 @@ class SettingController extends Controller
         $validated = $request->validate([
             'site_name' => 'required|string',
             'contact_email' => 'required|email',
-            'contact_phone' => 'required|string',
+            'contact_phone' => ['required', 'regex:/^[0-9]{10}$/'],
             'address' => 'required|string',
         ]);
 
@@ -54,8 +62,8 @@ class SettingController extends Controller
             'primary_color' => 'nullable|string',
             'secondary_color' => 'nullable|string',
             'font_family' => 'nullable|string',
-            'logo' => 'nullable|image|max:2048',
-            'favicon' => 'nullable|image|max:512',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp,svg|max:2048',
+            'favicon' => 'nullable|image|mimes:jpg,jpeg,png,webp,ico|max:512',
             'remove_logo' => 'nullable|string',
             'remove_favicon' => 'nullable|string',
         ]);
@@ -157,7 +165,7 @@ class SettingController extends Controller
             'meta_keywords' => 'nullable|string',
             'og_title' => 'nullable|string',
             'og_description' => 'nullable|string',
-            'og_image' => 'nullable|image|max:2048',
+            'og_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'twitter_card' => 'nullable|string',
             'twitter_site' => 'nullable|string',
         ]);
@@ -180,16 +188,30 @@ class SettingController extends Controller
     public function updateEmail(Request $request)
     {
         $validated = $request->validate([
-            'smtp_host' => 'nullable|string',
-            'smtp_port' => 'nullable|integer',
-            'smtp_username' => 'nullable|string',
-            'smtp_password' => 'nullable|string',
+            'smtp_host' => 'nullable|string|max:255',
+            'smtp_port' => 'nullable|integer|min:1|max:65535',
+            'smtp_username' => 'nullable|string|max:255',
+            'smtp_password' => 'nullable|string|max:255',
             'smtp_encryption' => 'nullable|in:tls,ssl',
-            'from_email' => 'nullable|email',
-            'from_name' => 'nullable|string',
+            'from_email' => 'nullable|email|max:255',
+            'from_name' => 'nullable|string|max:255',
         ]);
 
-        Setting::set('email', $validated);
+        $existing = Setting::where('key', 'email')->first();
+        $data = $existing ? (array) $existing->value : [];
+
+        foreach (['smtp_host', 'smtp_port', 'smtp_username', 'smtp_encryption', 'from_email', 'from_name'] as $field) {
+            if (array_key_exists($field, $validated)) {
+                $data[$field] = $validated[$field];
+            }
+        }
+
+        // Keep previous password unless a new one is provided
+        if (!empty($validated['smtp_password'])) {
+            $data['smtp_password'] = $validated['smtp_password'];
+        }
+
+        Setting::set('email', $data);
 
         return response()->json([
             'success' => true,

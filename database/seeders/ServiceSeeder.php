@@ -164,8 +164,28 @@ class ServiceSeeder extends Seeder
             ]
         ];
 
-        foreach ($services as $service) {
-            Service::create($service);
+        foreach ($services as $serviceData) {
+            $existing = Service::query()
+                ->where('order', $serviceData['order'])
+                ->first();
+
+            if ($existing) {
+                continue;
+            }
+
+            $service = Service::create($serviceData);
+
+            // Monday–Friday, 9 AM–6 PM, 30-minute slots
+            foreach (['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as $day) {
+                $service->schedules()->create([
+                    'day_of_week' => $day,
+                    'start_time' => '09:00:00',
+                    'end_time' => '18:00:00',
+                    'slot_duration' => 30,
+                    'max_appointments_per_slot' => 1,
+                    'is_active' => true,
+                ]);
+            }
         }
     }
 }

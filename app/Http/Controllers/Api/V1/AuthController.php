@@ -32,6 +32,12 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Prefetch roles/permissions once (avoids extra Spatie queries after token create)
+        $user->load(['roles', 'permissions']);
+
+        // Invalidate previous tokens on fresh login
+        $user->tokens()->delete();
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([

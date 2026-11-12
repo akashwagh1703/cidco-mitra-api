@@ -22,8 +22,18 @@ class ServiceController extends Controller
         return response()->json(['success' => true, 'data' => $services]);
     }
 
+    private function normalizeServicePhones(Request $request): void
+    {
+        foreach (['phone', 'whatsapp'] as $field) {
+            if ($request->exists($field) && trim((string) $request->input($field)) === '') {
+                $request->merge([$field => null]);
+            }
+        }
+    }
+
     public function store(Request $request)
     {
+        $this->normalizeServicePhones($request);
         $validator = Validator::make($request->all(), [
             'title' => 'required|array',
             'title.en' => 'required|string|max:255',
@@ -34,8 +44,8 @@ class ServiceController extends Controller
             'documents' => 'nullable|array',
             'timeline' => 'nullable|array',
             'icon' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'whatsapp' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'regex:/^[0-9]{10}$/'],
+            'whatsapp' => ['nullable', 'regex:/^[0-9]{10}$/'],
             'appointment_url' => 'nullable|url|max:255',
             'status' => 'boolean',
             'order' => 'integer'
@@ -71,6 +81,7 @@ class ServiceController extends Controller
 
     public function update(Request $request, string $id)
     {
+        $this->normalizeServicePhones($request);
         $validator = Validator::make($request->all(), [
             'title' => 'required|array',
             'title.en' => 'required|string|max:255',
@@ -81,8 +92,8 @@ class ServiceController extends Controller
             'documents' => 'nullable|array',
             'timeline' => 'nullable|array',
             'icon' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'whatsapp' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'regex:/^[0-9]{10}$/'],
+            'whatsapp' => ['nullable', 'regex:/^[0-9]{10}$/'],
             'appointment_url' => 'nullable|url|max:255',
             'status' => 'boolean',
             'order' => 'integer'

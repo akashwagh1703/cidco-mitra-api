@@ -42,7 +42,7 @@ class AppointmentController extends Controller
 
         $appointments = $query->orderBy('appointment_date', 'desc')
             ->orderBy('appointment_time', 'desc')
-            ->paginate($request->per_page ?? 15);
+            ->paginate(min((int) ($request->per_page ?? 15), 100));
 
         return response()->json([
             'success' => true,

@@ -30,20 +30,31 @@ class ServiceSchedule extends Model
 
     public function getAvailableSlots($date)
     {
-        $slots = [];
+        $candidateTimes = [];
         $start = \Carbon\Carbon::parse($this->start_time);
         $end = \Carbon\Carbon::parse($this->end_time);
 
         while ($start->lt($end)) {
-            $slotTime = $start->format('H:i:s');
-            
-            // Check existing appointments for this slot
-            $bookedCount = Appointment::where('service_id', $this->service_id)
-                ->where('appointment_date', $date)
-                ->where('appointment_time', $slotTime)
-                ->whereIn('status', ['pending', 'confirmed'])
-                ->count();
+            $candidateTimes[] = $start->format('H:i:s');
+            $start->addMinutes($this->slot_duration);
+        }
 
+        if (empty($candidateTimes)) {
+            return [];
+        }
+
+        $bookedByTime = Appointment::query()
+            ->select('appointment_time', \Illuminate\Support\Facades\DB::raw('COUNT(*) as booked'))
+            ->where('service_id', $this->service_id)
+            ->where('appointment_date', $date)
+            ->whereIn('appointment_time', $candidateTimes)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->groupBy('appointment_time')
+            ->pluck('booked', 'appointment_time');
+
+        $slots = [];
+        foreach ($candidateTimes as $slotTime) {
+            $bookedCount = (int) ($bookedByTime[$slotTime] ?? 0);
             if ($bookedCount < $this->max_appointments_per_slot) {
                 $slots[] = [
                     'time' => $slotTime,
@@ -52,8 +63,6 @@ class ServiceSchedule extends Model
                     'capacity' => $this->max_appointments_per_slot,
                 ];
             }
-
-            $start->addMinutes($this->slot_duration);
         }
 
         return $slots;

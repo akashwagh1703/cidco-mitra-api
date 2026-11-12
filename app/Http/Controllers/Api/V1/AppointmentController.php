@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\ServiceSchedule;
-use App\Models\Notification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class AppointmentController extends Controller
@@ -17,10 +17,11 @@ class AppointmentController extends Controller
             'service_id' => 'required|exists:services,id',
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'phone' => 'required|string|max:20',
+            'phone' => ['required', 'regex:/^[0-9]{10}$/'],
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required|date_format:H:i:s',
             'message' => 'nullable|string|max:1000',
+            'website' => 'nullable|max:0', // honeypot
         ]);
 
         if ($validator->fails()) {
@@ -31,7 +32,6 @@ class AppointmentController extends Controller
             ], 422);
         }
 
-        // Check if slot is available
         $date = $request->appointment_date;
         $time = $request->appointment_time;
         $dayOfWeek = strtolower(\Carbon\Carbon::parse($date)->format('l'));
@@ -48,28 +48,49 @@ class AppointmentController extends Controller
             ], 400);
         }
 
-        // Check slot capacity
-        $bookedCount = Appointment::where('service_id', $request->service_id)
-            ->where('appointment_date', $date)
-            ->where('appointment_time', $time)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->count();
+        try {
+            $appointment = DB::transaction(function () use ($request, $date, $time, $schedule) {
+                $bookedCount = Appointment::where('service_id', $request->service_id)
+                    ->where('appointment_date', $date)
+                    ->where('appointment_time', $time)
+                    ->whereIn('status', ['pending', 'confirmed'])
+                    ->lockForUpdate()
+                    ->count();
 
-        if ($bookedCount >= $schedule->max_appointments_per_slot) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This time slot is fully booked. Please select another time.'
-            ], 400);
+                if ($bookedCount >= $schedule->max_appointments_per_slot) {
+                    throw new \RuntimeException('SLOT_FULL');
+                }
+
+                return Appointment::create([
+                    'service_id' => $request->service_id,
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'appointment_date' => $date,
+                    'appointment_time' => $time,
+                    'message' => $request->message,
+                    'status' => 'pending',
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'SLOT_FULL') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This time slot is fully booked. Please select another time.'
+                ], 400);
+            }
+            throw $e;
         }
-
-        $appointment = Appointment::create($request->all());
-
-
 
         return response()->json([
             'success' => true,
             'message' => 'Appointment booked successfully',
-            'data' => $appointment
+            'data' => [
+                'id' => $appointment->id,
+                'appointment_date' => $appointment->appointment_date,
+                'appointment_time' => $appointment->appointment_time,
+                'status' => $appointment->status,
+            ]
         ], 201);
     }
 
